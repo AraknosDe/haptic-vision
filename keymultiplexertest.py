@@ -21,7 +21,7 @@ def update_fingers():
 def on_press(key):
     #print(str(key) + " pressed")
     if key == KeyCode.from_char('a'):
-        print('in a if')
+        #print('in a if')
         fingers[0] = 1.0
     if key == KeyCode.from_char('s'):
         fingers[1] = 1.0
