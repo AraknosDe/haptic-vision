@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     listener = SyncMultiFrameListener(FrameType.Ir | FrameType.Depth)
 
-    device.setColorFrameListener(listener)
+    #device.setColorFrameListener(listener)
     device.setIrAndDepthFrameListener(listener)
 
     device.start()
@@ -62,24 +62,32 @@ if __name__ == '__main__':
 
     while True:
         frames = listener.waitForNewFrame()
+        start = time.time()
         print("received new frame")
 
         #color = frames["color"]
-        ir = frames["ir"]
+        #ir = frames["ir"]
         depth = frames["depth"]
+        print("got depth frame at {}".format(time.time()-start))
 
         #registration.apply(color, depth, undistorted, registered,
         #                   bigdepth=bigdepth,
         #                   color_depth_map=color_depth_map)
 
         #cv2.imshow("ir", ir.asarray() / 65535.)
-        cv2.imshow("depth", depth.asarray() / 4500.)
+        #cv2.imshow("depth", depth.asarray() / 4500.)
+        print("displayed image at {}".format(time.time()-start))
+        
+        #print(depth.asarray().shape)
+        #input()
+        
         depthglove.update_glove(depth.asarray())
+        print("glove updated at {}".format(time.time()-start))
         #cv2.imshow("color", cv2.resize(color.asarray(),
         #                                (int(1920 / 3), int(1080 / 3))))
         #cv2.imshow("registered", registered.asarray(np.uint8))
 
-        print("depth first element: ", depth.asarray()[0])
+        #print("depth first element: ", depth.asarray()[0])
 
         listener.release(frames)
 
@@ -87,7 +95,7 @@ if __name__ == '__main__':
         if key == ord('q'):
             break
 
-        time.sleep(1)
+        #time.sleep(1)
 
     device.stop()
     device.close()
