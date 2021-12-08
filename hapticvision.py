@@ -60,47 +60,49 @@ if __name__ == '__main__':
     bigdepth = Frame(1920, 1082, 4) if need_bigdepth else None
     color_depth_map = np.zeros((424, 512), np.int32).ravel() if need_color_depth_map else None
 
-    while True:
-        frames = listener.waitForNewFrame()
-        start = time.time()
-        print("received new frame")
+    try:
+        while True:
+            frames = listener.waitForNewFrame()
+            start = time.time()
+            print("received new frame")
 
-        #color = frames["color"]
-        #ir = frames["ir"]
-        depth = frames["depth"]
-        print("got depth frame at {}".format(time.time()-start))
+            #color = frames["color"]
+            #ir = frames["ir"]
+            depth = frames["depth"]
+            print("got depth frame at {}".format(time.time()-start))
 
-        #registration.apply(color, depth, undistorted, registered,
-        #                   bigdepth=bigdepth,
-        #                   color_depth_map=color_depth_map)
+            #registration.apply(color, depth, undistorted, registered,
+            #                   bigdepth=bigdepth,
+            #                   color_depth_map=color_depth_map)
 
-        #cv2.imshow("ir", ir.asarray() / 65535.)
-        #cv2.imshow("depth", depth.asarray() / 4500.)
-        print("displayed image at {}".format(time.time()-start))
-        
-        #print(depth.asarray().shape)
-        #input()
-        
-        depthglove.update_glove(depth.asarray())
-        print("glove updated at {}".format(time.time()-start))
-        #cv2.imshow("color", cv2.resize(color.asarray(),
-        #                                (int(1920 / 3), int(1080 / 3))))
-        #cv2.imshow("registered", registered.asarray(np.uint8))
+            #cv2.imshow("ir", ir.asarray() / 65535.)
+            #cv2.imshow("depth", depth.asarray() / 4500.)
+            print("displayed image at {}".format(time.time()-start))
+            
+            #print(depth.asarray().shape)
+            #input()
+            
+            depthglove.update_glove(depth.asarray())
+            print("glove updated at {}".format(time.time()-start))
+            #cv2.imshow("color", cv2.resize(color.asarray(),
+            #                                (int(1920 / 3), int(1080 / 3))))
+            #cv2.imshow("registered", registered.asarray(np.uint8))
 
-        #print("depth first element: ", depth.asarray()[0])
+            #print("depth first element: ", depth.asarray()[0])
 
-        listener.release(frames)
+            listener.release(frames)
 
-        key = cv2.waitKey(delay=1)
-        if key == ord('q'):
-            break
+            key = cv2.waitKey(delay=1)
+            if key == ord('q'):
+                break
 
-        #time.sleep(1)
+            #time.sleep(1)
+    except KeyboardInterrupt:
+        depthglove.stop_fingers()
+        device.stop()
+        device.close()
 
-    device.stop()
-    device.close()
-
-    sys.exit(0)
+        sys.exit(0)
     
     
     

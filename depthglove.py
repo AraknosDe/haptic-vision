@@ -13,11 +13,13 @@ vertcalfov = 60
 histogram_size = 100
 warning_frac = 0.1
 
+run_fingers = False
+
 x_first = False
 
 class DepthGlove:
         
-        def __init__(self, maxdist=1000, mindist=500, horizontalfrac=1.0, verticalfrac=1.0, hand='left'):
+        def __init__(self, maxdist=4500, mindist=500, horizontalfrac=0.8, verticalfrac=0.4, hand='left'):
                 self._glove = Glove()
                 self._maxdist = maxdist
                 self._mindist = mindist
@@ -50,7 +52,7 @@ class DepthGlove:
                 #print("min: " + str(np.amin(image)))
                 #print("max: " + str(np.amax(image)))
                 #cv2.imshow("depth", image / imax)
-                image[image == 0.0] = self._maxdist
+                image[image == 0.0] = self._mindist
                 
                 
                 #image = np.where(image == 0.0, self._maxdist, image)
@@ -74,13 +76,18 @@ class DepthGlove:
                 fingers = [0]*5
                 dist = []
                 
-                showimg = np.copy(image)
+                
+                bottomadd = zonewidth
+                showimg = np.zeros((image.shape[0]+bottomadd, image.shape[1]))
+                showimg[0:image.shape[0], :] = image 
+                showimg = (showimg - self._mindist)/self._distrange
                 #showimg[50:150, 250:350] = 0
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 
                 #print("shape {}".format(image.shape))
                 
                 for zone in range(5):
+                        finger = zone if self._hand == 'left' else 4-zone
                         #self._histogram_setup()
                         
                         #for x in range(horizontalstart+zone*zonewidth, horizontalstart+(zone+1)*zonewidth):
@@ -101,18 +108,25 @@ class DepthGlove:
                                 integral = integral + histogram[bucket]
                                 #print("{}: {}/{}".format(bucket, integral, target_integral))
                                 if integral >= target_integral:
-                                        finger = zone if self._hand == 'left' else 4-zone
                                         dist.append(binedges[bucket])
                                         #print(binedges)
                                         fingers[finger] = 1 - self._get_frac(binedges[bucket])
                                         break
-                        cv2.line(showimg,(zoneleft,0),(zoneleft,image.shape[0]),(255,255,255),1)
-                        cv2.putText(showimg,str("{:.2f}".format(dist[-1])),(zoneleft,50), font, 0.4,(255,255,255),1,cv2.LINE_AA)
-                                        
+                        cv2.line(showimg,(zoneleft,0),(zoneleft,image.shape[0]),(0,0,0),1)
+                        cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(1,0,0),3,cv2.LINE_AA)
+                        cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(0,0,0),1,cv2.LINE_AA)
+                        cv2.circle(showimg,
+                                (int(zoneleft+bottomadd/2), int(bottomadd/2+image.shape[0])),
+                                int(bottomadd/2), fingers[finger], -1)
+                        
+                cv2.line(showimg,(horizontalend,0),(horizontalend,image.shape[0]),(0,0,0),1)
+                cv2.line(showimg,(0,verticalstart),(image.shape[1],verticalstart),(0,0,0),1)
+                cv2.line(showimg,(0,verticalend),(image.shape[1],verticalend),(0,0,0),1)
                 #print("fingers {}".format(fingers))
                 #print("fingerdist {}".format(dist))
-                cv2.imshow("depth", showimg / self._maxdist)
-                self._glove.set_fingers(fingers)
+                cv2.imshow("depth", showimg)
+                if run_fingers:
+                        self._glove.set_fingers(fingers)
                 
         def stop_fingers(self):
                 self._glove.stop_fingers()
