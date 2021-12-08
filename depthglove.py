@@ -13,13 +13,13 @@ vertcalfov = 60
 histogram_size = 100
 warning_frac = 0.1
 
-run_fingers = False
+run_fingers = True
 
 x_first = False
 
 class DepthGlove:
         
-        def __init__(self, maxdist=4500, mindist=500, horizontalfrac=0.8, verticalfrac=0.4, hand='left'):
+        def __init__(self, maxdist=2500, mindist=500, horizontalfrac=1.0, verticalfrac=0.5, hand='left'):
                 self._glove = Glove()
                 self._maxdist = maxdist
                 self._mindist = mindist
@@ -30,6 +30,8 @@ class DepthGlove:
                 self._hand = hand
              
         def update_glove(self, image):
+                image = np.flip(image, axis=1)
+                
                 width = image.shape[0]
                 height = image.shape[1]
                 if not x_first:
@@ -43,7 +45,7 @@ class DepthGlove:
                 verticalend = height - 1 - verticalstart
                 zoneheight = verticalend - verticalstart + 1
                 
-                total_samples = zonewidth * zoneheight
+                #total_samples = zonewidth * zoneheight
                 
                 
                 #print("lower left: {}".format(image[-1][0]))
@@ -52,16 +54,17 @@ class DepthGlove:
                 #print("min: " + str(np.amin(image)))
                 #print("max: " + str(np.amax(image)))
                 #cv2.imshow("depth", image / imax)
-                image[image == 0.0] = self._mindist
+                #image[image == 0.0] = -1.0#self._mindist
                 
                 
                 #image = np.where(image == 0.0, self._maxdist, image)
                 #print("min: " + str(np.amin(image)))
                 #print("max: " + str(np.amax(image)))
                 
+                zeroimg = np.zeros(image.shape)
                 minarray = np.full(image.shape, self._mindist)
                 maxarray = np.full(image.shape, self._maxdist)
-                image = np.clip(image, minarray, maxarray)
+                image = np.clip(image, zeroimg, maxarray)
                 
                 
                 
@@ -79,15 +82,15 @@ class DepthGlove:
                 
                 bottomadd = zonewidth
                 showimg = np.zeros((image.shape[0]+bottomadd, image.shape[1]))
-                showimg[0:image.shape[0], :] = image 
-                showimg = (showimg - self._mindist)/self._distrange
+                showimg[0:image.shape[0], :] = np.clip(image, minarray, maxarray) 
+                showimg[0:image.shape[0], :] = 1 - (showimg[0:image.shape[0], :] - self._mindist)/self._distrange
                 #showimg[50:150, 250:350] = 0
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 
                 #print("shape {}".format(image.shape))
                 
                 for zone in range(5):
-                        finger = zone if self._hand == 'left' else 4-zone
+                        finger = 4-zone if self._hand == 'left' else zone
                         #self._histogram_setup()
                         
                         #for x in range(horizontalstart+zone*zonewidth, horizontalstart+(zone+1)*zonewidth):
@@ -98,26 +101,33 @@ class DepthGlove:
                         zoneleft = horizontalstart+zone*zonewidth
                         zoneright = horizontalstart+(zone+1)*zonewidth
                         histogram, binedges = np.histogram(image[verticalstart:verticalend, horizontalstart+zone*zonewidth:horizontalstart+(zone+1)*zonewidth],
-                                bins=histogram_size)
-                                
+                                bins=histogram_size, range=(self._mindist, self._maxdist))
+                        
+                        total_samples = np.sum(histogram)
                         #print(histogram)
                         
                         integral = 0
                         target_integral = total_samples * warning_frac
-                        for bucket in range(histogram_size):
-                                integral = integral + histogram[bucket]
-                                #print("{}: {}/{}".format(bucket, integral, target_integral))
-                                if integral >= target_integral:
-                                        dist.append(binedges[bucket])
-                                        #print(binedges)
-                                        fingers[finger] = 1 - self._get_frac(binedges[bucket])
-                                        break
+                        if total_samples == 0:
+                                dist.append(self._maxdist)
+                                fingers[finger] = 1 - self._get_frac(self._maxdist)
+                        else:
+                                for bucket in range(histogram_size):
+                                        integral = integral + histogram[bucket]
+                                        #print("{}: {}/{}".format(bucket, integral, target_integral))
+                                        if integral >= target_integral:
+                                                dist.append(binedges[bucket])
+                                                #print(binedges)
+                                                fingers[finger] = 1 - self._get_frac(binedges[bucket])
+                                                break
                         cv2.line(showimg,(zoneleft,0),(zoneleft,image.shape[0]),(0,0,0),1)
-                        cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(1,0,0),3,cv2.LINE_AA)
-                        cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(0,0,0),1,cv2.LINE_AA)
+                        #cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(1,0,0),5,cv2.LINE_AA)
+                        #cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,30), font, 0.6,(0,0,0),3,cv2.LINE_AA)
                         cv2.circle(showimg,
                                 (int(zoneleft+bottomadd/2), int(bottomadd/2+image.shape[0])),
                                 int(bottomadd/2), fingers[finger], -1)
+                        textcolor = 1 if fingers[finger] < 0.5 else 0
+                        cv2.putText(showimg,str("{:.0f}".format(dist[-1])),(zoneleft+5,int(bottomadd/2+image.shape[0]+5)), font, 0.6,(textcolor,0,0),2,cv2.LINE_AA)
                         
                 cv2.line(showimg,(horizontalend,0),(horizontalend,image.shape[0]),(0,0,0),1)
                 cv2.line(showimg,(0,verticalstart),(image.shape[1],verticalstart),(0,0,0),1)
